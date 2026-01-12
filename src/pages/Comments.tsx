@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { ArrowUpDown, Loader } from 'lucide-react';
+import { ArrowUpDown } from 'lucide-react';
 import { useAppSelector } from '@hooks/useRedux';
 import { commentService } from '@services/commentService';
 import socketService from '@services/socket';
@@ -44,53 +44,114 @@ const Comments: React.FC = () => {
     // Socket.io real-time updates
     useEffect(() => {
         if (token) {
+            console.log('🔌 Setting up Socket.io connection...');
+
             // Connect to Socket.io
             socketService.connect(token);
 
+            // Wait a bit for connection to establish
+            setTimeout(() => {
+                console.log('Socket connected status:', socketService.isConnected());
+            }, 1000);
+
             // Listen for new comments
-            socketService.on('comment:new', (newComment: Comment) => {
-                console.log('New comment received:', newComment);
+            socketService.on('comment:created', (eventData: any) => {
+                console.log('🆕 New comment event received:', eventData);
+
+                // Extract the actual comment data
+                const newComment = eventData.data || eventData;
+
+                console.log('Extracted comment:', newComment);
+
+                // Validate comment has required fields
+                if (!newComment || !newComment.id) {
+                    console.error('Invalid comment data:', newComment);
+                    return;
+                }
+
                 // Only add if it's a root comment and we're on the first page with newest sort
                 if (!newComment.parentComment && currentPage === 1 && sortBy === 'newest') {
-                    setComments((prev) => [newComment, ...prev]);
+                    setComments((prev) => {
+                        // Check if comment already exists
+                        if (prev.some(c => c.id === newComment.id)) {
+                            console.log('Comment already exists, skipping');
+                            return prev;
+                        }
+                        console.log('Adding new comment to list');
+                        return [newComment, ...prev];
+                    });
+                    toast.success('New comment added!', { autoClose: 2000 });
+                } else {
+                    console.log('Comment not added to current view, reloading...');
+                    loadComments();
                 }
             });
 
             // Listen for comment updates
-            socketService.on('comment:update', (updatedComment: Comment) => {
-                console.log('Comment updated:', updatedComment);
+            socketService.on('comment:updated', (eventData: any) => {
+                console.log('✏️ Comment update event received:', eventData);
+                const updatedComment = eventData.data || eventData;
+
+                if (!updatedComment || !updatedComment.id) {
+                    console.error('Invalid updated comment data:', updatedComment);
+                    return;
+                }
+
                 setComments((prev) =>
-                    prev.map((c) => (c.id === updatedComment.id ? updatedComment : c))
+                    prev.map((c) => (c.id === updatedComment.id ? { ...c, ...updatedComment } : c))
                 );
+                toast.info('Comment updated!', { autoClose: 2000 });
             });
 
             // Listen for comment deletions
-            socketService.on('comment:delete', (data: { commentId: string }) => {
-                console.log('Comment deleted:', data.commentId);
-                setComments((prev) => prev.filter((c) => c.id !== data.commentId));
+            socketService.on('comment:deleted', (eventData: any) => {
+                console.log('🗑️ Comment delete event received:', eventData);
+                const commentId = eventData.data?.id || eventData.commentId || eventData.id;
+
+                if (!commentId) {
+                    console.error('Invalid delete event data:', eventData);
+                    return;
+                }
+
+                setComments((prev) => prev.filter((c) => c.id !== commentId));
+                toast.info('Comment deleted', { autoClose: 2000 });
             });
 
             // Listen for like/dislike updates
-            socketService.on('comment:like', (data: { commentId: string; likeCount: number; dislikeCount: number }) => {
-                console.log('Like update:', data);
+            socketService.on('comment:liked', (eventData: any) => {
+                console.log('👍 Like update event received:', eventData);
+                const likeData = eventData.data || eventData;
+
+                if (!likeData || !likeData.commentId) {
+                    console.error('Invalid like event data:', eventData);
+                    return;
+                }
+
                 setComments((prev) =>
                     prev.map((c) =>
-                        c.id === data.commentId
-                            ? { ...c, likeCount: data.likeCount, dislikeCount: data.dislikeCount }
+                        c.id === likeData.commentId
+                            ? {
+                                ...c,
+                                likeCount: likeData.likeCount ?? c.likeCount,
+                                dislikeCount: likeData.dislikeCount ?? c.dislikeCount,
+                                hasLiked: likeData.hasLiked ?? c.hasLiked,
+                                hasDisliked: likeData.hasDisliked ?? c.hasDisliked,
+                            }
                             : c
                     )
                 );
             });
 
             return () => {
-                socketService.off('comment:new');
-                socketService.off('comment:update');
-                socketService.off('comment:delete');
-                socketService.off('comment:like');
+                console.log('🔌 Cleaning up Socket.io listeners...');
+                socketService.off('comment:created');
+                socketService.off('comment:updated');
+                socketService.off('comment:deleted');
+                socketService.off('comment:liked');
                 socketService.disconnect();
             };
         }
-    }, [token, currentPage, sortBy]);
+    }, [token, currentPage, sortBy, loadComments]);
 
     const handleSortChange = (newSort: 'newest' | 'oldest' | 'most_liked') => {
         setSortBy(newSort);

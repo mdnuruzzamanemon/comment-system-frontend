@@ -27,22 +27,74 @@ const CommentItem: React.FC<CommentItemProps> = ({
     const [showMenu, setShowMenu] = useState(false);
     const [isUpdating, setIsUpdating] = useState(false);
 
+    // Local state for optimistic updates
+    const [localLikeCount, setLocalLikeCount] = useState(comment.likeCount);
+    const [localDislikeCount, setLocalDislikeCount] = useState(comment.dislikeCount);
+    const [localHasLiked, setLocalHasLiked] = useState(comment.hasLiked);
+    const [localHasDisliked, setLocalHasDisliked] = useState(comment.hasDisliked);
+
     const isOwner = user?.id === comment.author.id;
 
     const handleLike = async () => {
+        // Optimistic update
+        const wasLiked = localHasLiked;
+        const wasDisliked = localHasDisliked;
+
+        if (wasLiked) {
+            // Unlike
+            setLocalHasLiked(false);
+            setLocalLikeCount(localLikeCount - 1);
+        } else {
+            // Like
+            setLocalHasLiked(true);
+            setLocalLikeCount(localLikeCount + 1);
+            if (wasDisliked) {
+                setLocalHasDisliked(false);
+                setLocalDislikeCount(localDislikeCount - 1);
+            }
+        }
+
         try {
             await commentService.likeComment(comment.id);
-            onUpdate();
+            // Server will broadcast the update via Socket.io
         } catch (error: any) {
+            // Revert on error
+            setLocalHasLiked(wasLiked);
+            setLocalHasDisliked(wasDisliked);
+            setLocalLikeCount(comment.likeCount);
+            setLocalDislikeCount(comment.dislikeCount);
             toast.error(error.response?.data?.message || 'Failed to like comment');
         }
     };
 
     const handleDislike = async () => {
+        // Optimistic update
+        const wasLiked = localHasLiked;
+        const wasDisliked = localHasDisliked;
+
+        if (wasDisliked) {
+            // Undislike
+            setLocalHasDisliked(false);
+            setLocalDislikeCount(localDislikeCount - 1);
+        } else {
+            // Dislike
+            setLocalHasDisliked(true);
+            setLocalDislikeCount(localDislikeCount + 1);
+            if (wasLiked) {
+                setLocalHasLiked(false);
+                setLocalLikeCount(localLikeCount - 1);
+            }
+        }
+
         try {
             await commentService.dislikeComment(comment.id);
-            onUpdate();
+            // Server will broadcast the update via Socket.io
         } catch (error: any) {
+            // Revert on error
+            setLocalHasLiked(wasLiked);
+            setLocalHasDisliked(wasDisliked);
+            setLocalLikeCount(comment.likeCount);
+            setLocalDislikeCount(comment.dislikeCount);
             toast.error(error.response?.data?.message || 'Failed to dislike comment');
         }
     };
@@ -91,6 +143,14 @@ const CommentItem: React.FC<CommentItemProps> = ({
         if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)}d ago`;
         return date.toLocaleDateString();
     };
+
+    // Update local state when props change (from Socket.io)
+    React.useEffect(() => {
+        setLocalLikeCount(comment.likeCount);
+        setLocalDislikeCount(comment.dislikeCount);
+        setLocalHasLiked(comment.hasLiked);
+        setLocalHasDisliked(comment.hasDisliked);
+    }, [comment.likeCount, comment.dislikeCount, comment.hasLiked, comment.hasDisliked]);
 
     return (
         <div className="comment-item">
@@ -163,19 +223,19 @@ const CommentItem: React.FC<CommentItemProps> = ({
 
             <div className="comment-actions">
                 <button
-                    className={`comment-action ${comment.hasLiked ? 'active' : ''}`}
+                    className={`comment-action ${localHasLiked ? 'active' : ''}`}
                     onClick={handleLike}
                 >
                     <ThumbsUp size={16} />
-                    <span>{comment.likeCount}</span>
+                    <span>{localLikeCount}</span>
                 </button>
 
                 <button
-                    className={`comment-action ${comment.hasDisliked ? 'active' : ''}`}
+                    className={`comment-action ${localHasDisliked ? 'active' : ''}`}
                     onClick={handleDislike}
                 >
                     <ThumbsDown size={16} />
-                    <span>{comment.dislikeCount}</span>
+                    <span>{localDislikeCount}</span>
                 </button>
 
                 {showReplies && (
