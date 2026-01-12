@@ -1,0 +1,48 @@
+// API utility with automatic token refresh
+async function apiCall(url, options = {}) {
+  // Try request with current access token
+  let response = await fetch(url, {
+    ...options,
+    headers: {
+      ...options.headers,
+      'Authorization': `Bearer ${getAccessToken()}`
+    },
+    credentials: 'include' // Important: sends refresh token cookie
+  });
+
+  // If access token expired (401), refresh it automatically
+  if (response.status === 401) {
+    // Call refresh endpoint (uses httpOnly cookie automatically)
+    const refreshResponse = await fetch('/api/auth/refresh', {
+      method: 'POST',
+      credentials: 'include'
+    });
+
+    if (refreshResponse.ok) {
+      const data = await refreshResponse.json();
+      // Save new access token
+      setAccessToken(data.data.accessToken);
+      
+      // Retry original request with new token
+      response = await fetch(url, {
+        ...options,
+        headers: {
+          ...options.headers,
+          'Authorization': `Bearer ${data.data.accessToken}`
+        },
+        credentials: 'include'
+      });
+    } else {
+      // Refresh failed - redirect to login
+      redirectToLogin();
+    }
+  }
+
+  return response;
+}
+
+// Usage - completely transparent to user
+await apiCall('/api/comments/123/reply', {
+  method: 'POST',
+  body: JSON.stringify({ content: 'My reply' })
+});

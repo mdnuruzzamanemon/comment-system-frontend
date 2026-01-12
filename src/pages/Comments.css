@@ -1,0 +1,23 @@
+.comments-page {
+    min-height: 100vh;
+    padding: var(--spacing-2xl) 0;
+}
+
+.comments-header {
+    text-align: center;
+    margin-bottom: var(--spacing-2xl);
+}
+
+.comments-header h1 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: var(--spacing-sm);
+}
+
+.comments-header p {
+    color: var(--text-secondary);
+    font-size: 1.1rem;
+}

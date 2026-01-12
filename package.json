@@ -1,0 +1,32 @@
+{
+  "name": "comment-system-frontend",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Professional React comment system with real-time updates",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@reduxjs/toolkit": "^2.11.2",
+    "@vitejs/plugin-react": "^5.1.2",
+    "axios": "^1.13.2",
+    "lucide-react": "^0.562.0",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3",
+    "react-redux": "^9.2.0",
+    "react-router-dom": "^7.12.0",
+    "react-toastify": "^11.0.5",
+    "socket.io-client": "^4.8.3",
+    "vite": "^7.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^25.0.6",
+    "@types/react": "^19.2.8",
+    "@types/react-dom": "^19.2.3",
+    "typescript": "^5.9.3"
+  }
+}
