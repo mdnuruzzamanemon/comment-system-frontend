@@ -26,17 +26,20 @@ export interface RegisterCredentials {
     password: string;
 }
 
-// Comment Types
+// Comment Types (matching backend response)
 export interface Comment {
     id: string;
     content: string;
-    userId: string;
-    user: User;
-    likes: number;
-    dislikes: number;
-    userLikeStatus?: 'like' | 'dislike' | null;
-    parentId: string | null;
-    replies?: Comment[];
+    author: {
+        id: string;
+        username: string;
+    };
+    parentComment: string | null;
+    likeCount: number;
+    dislikeCount: number;
+    replyCount: number;
+    hasLiked: boolean;
+    hasDisliked: boolean;
     createdAt: string;
     updatedAt: string;
 }
@@ -48,12 +51,11 @@ export interface CommentState {
     totalComments: number;
     loading: boolean;
     error: string | null;
-    sortBy: 'newest' | 'mostLiked' | 'mostDisliked';
+    sortBy: 'newest' | 'oldest' | 'most_liked';
 }
 
 export interface CreateCommentDto {
     content: string;
-    parentId?: string | null;
 }
 
 export interface UpdateCommentDto {
@@ -63,7 +65,7 @@ export interface UpdateCommentDto {
 export interface PaginationParams {
     page: number;
     limit: number;
-    sortBy?: 'newest' | 'mostLiked' | 'mostDisliked';
+    sortBy?: 'newest' | 'oldest' | 'most_liked';
 }
 
 // API Response Types
@@ -74,25 +76,25 @@ export interface ApiResponse<T> {
 }
 
 export interface PaginatedResponse<T> {
-    data: T[];
+    comments: T[];
     pagination: {
-        currentPage: number;
-        totalPages: number;
-        totalItems: number;
-        itemsPerPage: number;
+        page: number;
+        limit: number;
+        total: number;
+        pages: number;
     };
 }
 
 // Socket Event Types
 export interface SocketEvents {
-    NEW_COMMENT: 'new_comment';
-    UPDATE_COMMENT: 'update_comment';
-    DELETE_COMMENT: 'delete_comment';
-    LIKE_UPDATE: 'like_update';
+    NEW_COMMENT: 'comment:new';
+    UPDATE_COMMENT: 'comment:update';
+    DELETE_COMMENT: 'comment:delete';
+    LIKE_UPDATE: 'comment:like';
 }
 
 export interface LikeUpdatePayload {
     commentId: string;
-    likes: number;
-    dislikes: number;
+    likeCount: number;
+    dislikeCount: number;
 }
