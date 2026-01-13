@@ -33,7 +33,14 @@ const CommentItem: React.FC<CommentItemProps> = ({
     const [localHasLiked, setLocalHasLiked] = useState(comment.hasLiked);
     const [localHasDisliked, setLocalHasDisliked] = useState(comment.hasDisliked);
 
-    const isOwner = user?.id === comment.author.id;
+    // Get current user from localStorage to ensure we have it
+    const getCurrentUser = () => {
+        const userStr = localStorage.getItem('user');
+        return userStr ? JSON.parse(userStr) : null;
+    };
+
+    const currentUser = getCurrentUser();
+    const isOwner = currentUser?.id === comment.author.id;
 
     const handleLike = async () => {
         // Optimistic update
