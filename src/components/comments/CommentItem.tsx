@@ -5,6 +5,7 @@ import { Comment } from '@types/index';
 import { commentService } from '@services/commentService';
 import { useAppSelector } from '@hooks/useRedux';
 import CommentForm from './CommentForm';
+import ConfirmDialog from '@components/common/ConfirmDialog';
 import './CommentItem.css';
 
 interface CommentItemProps {
@@ -26,6 +27,7 @@ const CommentItem: React.FC<CommentItemProps> = ({
     const [isReplying, setIsReplying] = useState(false);
     const [showMenu, setShowMenu] = useState(false);
     const [isUpdating, setIsUpdating] = useState(false);
+    const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
     // Local state for optimistic updates
     const [localLikeCount, setLocalLikeCount] = useState(comment.likeCount);
@@ -126,10 +128,6 @@ const CommentItem: React.FC<CommentItemProps> = ({
     };
 
     const handleDelete = async () => {
-        if (!window.confirm('Are you sure you want to delete this comment?')) {
-            return;
-        }
-
         try {
             await commentService.deleteComment(comment.id);
             toast.success('Comment deleted!');
@@ -186,7 +184,7 @@ const CommentItem: React.FC<CommentItemProps> = ({
                                     <Edit2 size={16} />
                                     Edit
                                 </button>
-                                <button onClick={() => { handleDelete(); setShowMenu(false); }} className="danger">
+                                <button onClick={() => { setShowDeleteDialog(true); setShowMenu(false); }} className="danger">
                                     <Trash2 size={16} />
                                     Delete
                                 </button>
@@ -269,6 +267,17 @@ const CommentItem: React.FC<CommentItemProps> = ({
                     />
                 </div>
             )}
+
+            <ConfirmDialog
+                isOpen={showDeleteDialog}
+                title="Delete Comment"
+                message="Are you sure you want to delete this comment? This action cannot be undone."
+                confirmText="Delete"
+                cancelText="Cancel"
+                onConfirm={handleDelete}
+                onCancel={() => setShowDeleteDialog(false)}
+                danger={true}
+            />
         </div>
     );
 };
