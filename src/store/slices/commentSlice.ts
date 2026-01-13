@@ -1,5 +1,5 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { CommentState, Comment } from '@types/index';
+import type { CommentState, Comment } from '../../types';
 
 const initialState: CommentState = {
     comments: [],
@@ -36,12 +36,12 @@ const commentSlice = createSlice({
         },
         updateLikes: (
             state,
-            action: PayloadAction<{ commentId: string; likes: number; dislikes: number }>
+            action: PayloadAction<{ commentId: string; likeCount: number; dislikeCount: number }>
         ) => {
             const comment = state.comments.find((c) => c.id === action.payload.commentId);
             if (comment) {
-                comment.likes = action.payload.likes;
-                comment.dislikes = action.payload.dislikes;
+                comment.likeCount = action.payload.likeCount;
+                comment.dislikeCount = action.payload.dislikeCount;
             }
         },
         setPagination: (
@@ -56,7 +56,7 @@ const commentSlice = createSlice({
             state.totalPages = action.payload.totalPages;
             state.totalComments = action.payload.totalComments;
         },
-        setSortBy: (state, action: PayloadAction<'newest' | 'mostLiked' | 'mostDisliked'>) => {
+        setSortBy: (state, action: PayloadAction<'newest' | 'oldest' | 'most_liked' | 'most_disliked'>) => {
             state.sortBy = action.payload;
         },
         setLoading: (state, action: PayloadAction<boolean>) => {

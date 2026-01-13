@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { ChevronDown, ChevronUp, Loader } from 'lucide-react';
-import { Comment } from '@types/index';
+import type { Comment } from '../../types';
 import { commentService } from '@services/commentService';
 import socketService from '@services/socket';
 import { toast } from 'react-toastify';

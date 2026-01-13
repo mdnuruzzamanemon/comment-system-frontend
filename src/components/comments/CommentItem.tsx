@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ThumbsUp, ThumbsDown, MessageCircle, Edit2, Trash2, MoreVertical } from 'lucide-react';
 import { toast } from 'react-toastify';
-import { Comment } from '@types/index';
+import type { Comment } from '../../types';
 import { commentService } from '@services/commentService';
 import { useAppSelector } from '@hooks/useRedux';
 import CommentForm from './CommentForm';
@@ -249,7 +249,7 @@ const CommentItem: React.FC<CommentItemProps> = ({
                         onClick={() => setIsReplying(!isReplying)}
                     >
                         <MessageCircle size={16} />
-                        <span>{comment.replyCount > 0 ? `${comment.replyCount} ${comment.replyCount === 1 ? 'Reply' : 'Replies'}` : 'Reply'}</span>
+                        <span>{comment.replyCount > 0 ? `${comment.replyCount} ${comment.replyCount === 1 ? 'Reply' : 'Replies'} ` : 'Reply'}</span>
                     </button>
                 )}
             </div>

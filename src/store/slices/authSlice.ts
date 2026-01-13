@@ -1,5 +1,5 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { AuthState, User } from '@types/index';
+import type { AuthState, User } from '../../types';
 
 // Helper function to get user from localStorage
 const getUserFromStorage = (): User | null => {

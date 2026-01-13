@@ -1,12 +1,12 @@
 import api from './api';
-import {
+import type {
     Comment,
     CreateCommentDto,
     UpdateCommentDto,
     ApiResponse,
     PaginatedResponse,
     PaginationParams,
-} from '@types/index';
+} from '../types';
 
 export const commentService = {
     // Create root comment

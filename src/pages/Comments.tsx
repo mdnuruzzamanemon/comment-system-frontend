@@ -3,7 +3,7 @@ import { ArrowUpDown } from 'lucide-react';
 import { useAppSelector } from '@hooks/useRedux';
 import { commentService } from '@services/commentService';
 import socketService from '@services/socket';
-import { Comment } from '@types/index';
+import type { Comment } from '../types';
 import { toast } from 'react-toastify';
 import Navbar from '@components/common/Navbar';
 import CommentForm from '@components/comments/CommentForm';

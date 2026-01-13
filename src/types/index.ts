@@ -51,7 +51,7 @@ export interface CommentState {
     totalComments: number;
     loading: boolean;
     error: string | null;
-    sortBy: 'newest' | 'oldest' | 'most_liked';
+    sortBy: 'newest' | 'oldest' | 'most_liked' | 'most_disliked';
 }
 
 export interface CreateCommentDto {

@@ -1,10 +1,10 @@
 import api from './api';
-import {
+import type {
     LoginCredentials,
     RegisterCredentials,
     User,
     ApiResponse,
-} from '@types/index';
+} from '../types';
 
 export const authService = {
     // Register new user
