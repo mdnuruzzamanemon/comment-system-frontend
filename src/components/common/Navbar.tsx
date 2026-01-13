@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { MessageSquare, LogIn, UserPlus, LogOut, User, ChevronDown } from 'lucide-react';
+import { MessageSquare, LogIn, UserPlus, LogOut, ChevronDown } from 'lucide-react';
 import { useAppSelector, useAppDispatch } from '@hooks/useRedux';
 import { logout } from '@store/slices/authSlice';
 import { toast } from 'react-toastify';

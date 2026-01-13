@@ -159,7 +159,10 @@ const Comments: React.FC = () => {
         // Listen for comment deletions
         socketService.on('comment:deleted', (payload: any) => {
             console.log('🗑️ Comment delete event received:', payload);
-            const { id, deletedBy } = payload.data;
+            console.log('📦 Payload data:', payload.data);
+            const { id, deletedBy, parentComment, parentCommentId } = payload.data;
+
+            console.log('🔍 Extracted values:', { id, deletedBy, parentComment, parentCommentId });
 
             if (!id) {
                 console.error('Invalid delete event data:', payload);
@@ -172,11 +175,61 @@ const Comments: React.FC = () => {
                 element.classList.add('comment-item-deleting');
                 // Remove from state after animation completes
                 setTimeout(() => {
+                    console.log('🗑️ Removing comment from state:', id);
+                    // Remove deleted comment
                     setComments((prev) => prev.filter((c) => c.id !== id));
+
+                    // Update parent comment with new data (including replyCount)
+                    if (parentComment) {
+                        console.log('📝 Updating parent comment:', parentComment);
+                        setComments((prev) => prev.map((c) => {
+                            if (c.id === parentComment.id) {
+                                console.log('✅ Found parent, updating from', c.replyCount, 'to', parentComment.replyCount);
+                                return parentComment;
+                            }
+                            return c;
+                        }));
+                    } else if (parentCommentId) {
+                        // Fallback: Backend didn't send full parentComment, manually decrement
+                        console.log('⚠️ No parentComment but has parentCommentId, manually decrementing');
+                        setComments((prev) => prev.map((c) => {
+                            if (c.id === parentCommentId) {
+                                console.log('✅ Found parent, decrementing from', c.replyCount, 'to', c.replyCount - 1);
+                                return {
+                                    ...c,
+                                    replyCount: Math.max(0, c.replyCount - 1)
+                                };
+                            }
+                            return c;
+                        }));
+                    } else {
+                        console.log('⚠️ No parentComment or parentCommentId in payload');
+                    }
                 }, 400);
             } else {
-                // If element not found, remove immediately
+                console.log('⚠️ Element not found, updating immediately');
+                // If element not found, update immediately
                 setComments((prev) => prev.filter((c) => c.id !== id));
+
+                if (parentComment) {
+                    console.log('📝 Updating parent comment (no animation):', parentComment);
+                    setComments((prev) => prev.map((c) =>
+                        c.id === parentComment.id ? parentComment : c
+                    ));
+                } else if (parentCommentId) {
+                    console.log('⚠️ No parentComment but has parentCommentId, manually decrementing (no animation)');
+                    setComments((prev) => prev.map((c) => {
+                        if (c.id === parentCommentId) {
+                            return {
+                                ...c,
+                                replyCount: Math.max(0, c.replyCount - 1)
+                            };
+                        }
+                        return c;
+                    }));
+                } else {
+                    console.log('⚠️ No parentComment or parentCommentId in payload (no animation path)');
+                }
             }
 
             // Show toast only for other users' deletions

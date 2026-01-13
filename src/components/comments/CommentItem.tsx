@@ -3,7 +3,7 @@ import { ThumbsUp, ThumbsDown, MessageCircle, Edit2, Trash2, MoreVertical } from
 import { toast } from 'react-toastify';
 import type { Comment } from '../../types';
 import { commentService } from '@services/commentService';
-import { useAppSelector } from '@hooks/useRedux';
+
 import CommentForm from './CommentForm';
 import ConfirmDialog from '@components/common/ConfirmDialog';
 import './CommentItem.css';
@@ -11,17 +11,15 @@ import './CommentItem.css';
 interface CommentItemProps {
     comment: Comment;
     onUpdate: () => void;
-    onReplyClick?: (commentId: string) => void;
     showReplies?: boolean;
 }
 
 const CommentItem: React.FC<CommentItemProps> = ({
     comment,
     onUpdate,
-    onReplyClick,
     showReplies = true,
 }) => {
-    const { user } = useAppSelector((state) => state.auth);
+
     const [isEditing, setIsEditing] = useState(false);
     const [editContent, setEditContent] = useState(comment.content);
     const [isReplying, setIsReplying] = useState(false);
