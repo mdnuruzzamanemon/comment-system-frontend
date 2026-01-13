@@ -65,7 +65,7 @@ export interface UpdateCommentDto {
 export interface PaginationParams {
     page: number;
     limit: number;
-    sortBy?: 'newest' | 'oldest' | 'most_liked';
+    sortBy?: 'newest' | 'oldest' | 'most_liked' | 'most_disliked';
 }
 
 // API Response Types

@@ -16,7 +16,7 @@ const Comments: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
-    const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'most_liked'>('newest');
+    const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'most_liked' | 'most_disliked'>('newest');
     const limit = 10;
 
     const loadComments = useCallback(async () => {
@@ -261,7 +261,7 @@ const Comments: React.FC = () => {
         };
     }, [token, user, currentPage, sortBy, loadComments]);
 
-    const handleSortChange = (newSort: 'newest' | 'oldest' | 'most_liked') => {
+    const handleSortChange = (newSort: 'newest' | 'oldest' | 'most_liked' | 'most_disliked') => {
         setSortBy(newSort);
         setCurrentPage(1);
     };
@@ -308,6 +308,12 @@ const Comments: React.FC = () => {
                                         onClick={() => handleSortChange('most_liked')}
                                     >
                                         Most Liked
+                                    </button>
+                                    <button
+                                        className={`sort-btn ${sortBy === 'most_disliked' ? 'active' : ''}`}
+                                        onClick={() => handleSortChange('most_disliked')}
+                                    >
+                                        Most Disliked
                                     </button>
                                 </div>
                             </div>
