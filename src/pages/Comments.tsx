@@ -17,7 +17,7 @@ const Comments: React.FC = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'most_liked'>('newest');
-    const limit = 20;
+    const limit = 10;
 
     const loadComments = useCallback(async () => {
         setLoading(true);
@@ -324,9 +324,37 @@ const Comments: React.FC = () => {
                                 >
                                     Previous
                                 </button>
-                                <div className="pagination-info">
-                                    Page {currentPage} of {totalPages}
+
+                                <div className="pagination-pages">
+                                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
+                                        // Show first page, last page, current page, and pages around current
+                                        const showPage =
+                                            page === 1 ||
+                                            page === totalPages ||
+                                            Math.abs(page - currentPage) <= 1;
+
+                                        const showEllipsis =
+                                            (page === currentPage - 2 && currentPage > 3) ||
+                                            (page === currentPage + 2 && currentPage < totalPages - 2);
+
+                                        if (showEllipsis) {
+                                            return <span key={page} className="pagination-ellipsis">...</span>;
+                                        }
+
+                                        if (!showPage) return null;
+
+                                        return (
+                                            <button
+                                                key={page}
+                                                className={`pagination-page ${page === currentPage ? 'active' : ''}`}
+                                                onClick={() => handlePageChange(page)}
+                                            >
+                                                {page}
+                                            </button>
+                                        );
+                                    })}
                                 </div>
+
                                 <button
                                     className="btn btn-secondary"
                                     onClick={() => handlePageChange(currentPage + 1)}
