@@ -151,14 +151,32 @@ const CommentItem: React.FC<CommentItemProps> = ({
 
     // Update local state when props change (from Socket.io)
     React.useEffect(() => {
+        const likeChanged = localLikeCount !== comment.likeCount;
+        const dislikeChanged = localDislikeCount !== comment.dislikeCount;
+
         setLocalLikeCount(comment.likeCount);
         setLocalDislikeCount(comment.dislikeCount);
         setLocalHasLiked(comment.hasLiked);
         setLocalHasDisliked(comment.hasDisliked);
-    }, [comment.likeCount, comment.dislikeCount, comment.hasLiked, comment.hasDisliked]);
+
+        // Trigger animation if counts changed
+        if (likeChanged || dislikeChanged) {
+            const likeButton = document.querySelector(`[data-comment-id="${comment.id}"] .comment-action:first-of-type`);
+            const dislikeButton = document.querySelector(`[data-comment-id="${comment.id}"] .comment-action:nth-of-type(2)`);
+
+            if (likeChanged && likeButton) {
+                likeButton.classList.add('comment-action-updated');
+                setTimeout(() => likeButton.classList.remove('comment-action-updated'), 300);
+            }
+            if (dislikeChanged && dislikeButton) {
+                dislikeButton.classList.add('comment-action-updated');
+                setTimeout(() => dislikeButton.classList.remove('comment-action-updated'), 300);
+            }
+        }
+    }, [comment.likeCount, comment.dislikeCount, comment.hasLiked, comment.hasDisliked, localLikeCount, localDislikeCount]);
 
     return (
-        <div className="comment-item">
+        <div className="comment-item" data-comment-id={comment.id}>
             <div className="comment-header">
                 <div className="comment-author">
                     <div className="comment-avatar">

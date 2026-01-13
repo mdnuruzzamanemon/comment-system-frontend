@@ -69,18 +69,30 @@ const Comments: React.FC = () => {
                 return;
             }
 
-            const isMyComment = user && newComment.author.id === user.id;
-
-            // Only add root comments (no parentComment) from other users
-            if (!newComment.parentComment && !isMyComment && currentPage === 1 && sortBy === 'newest') {
+            // Add root comments (no parentComment) when on page 1 with newest sort
+            if (!newComment.parentComment && currentPage === 1 && sortBy === 'newest') {
                 setComments((prev) => {
                     if (prev.some(c => c.id === newComment.id)) {
                         return prev;
                     }
                     return [newComment, ...prev];
                 });
-                toast.success(`${newComment.author.username} added a comment!`, { autoClose: 2000 });
-            } else if (!newComment.parentComment && !isMyComment) {
+
+                // Trigger animation by adding class to the new comment element
+                setTimeout(() => {
+                    const element = document.querySelector(`[data-comment-id="${newComment.id}"]`);
+                    if (element) {
+                        element.classList.add('comment-item-new');
+                    }
+                }, 50);
+
+                // Show toast only for other users' comments
+                const isMyComment = user && newComment.author.id === user.id;
+                if (!isMyComment) {
+                    toast.success(`${newComment.author.username} added a comment!`, { autoClose: 2000 });
+                }
+            } else if (!newComment.parentComment) {
+                // If not on page 1 or not newest sort, reload to show the comment
                 loadComments();
             }
         });
@@ -96,20 +108,20 @@ const Comments: React.FC = () => {
                 return;
             }
 
-            const isMyReply = user && reply.author.id === user.id;
-
-            console.log('📝 Reply added to parent:', parentId, 'isMyReply:', isMyReply);
+            console.log('📝 Reply added to parent:', parentId);
 
             // Update the parent comment's replyCount (for everyone)
-            if (!isMyReply) {
-                setComments((prev) =>
-                    prev.map((c) =>
-                        c.id === parentId
-                            ? { ...c, replyCount: (c.replyCount || 0) + 1 }
-                            : c
-                    )
-                );
+            setComments((prev) =>
+                prev.map((c) =>
+                    c.id === parentId
+                        ? { ...c, replyCount: (c.replyCount || 0) + 1 }
+                        : c
+                )
+            );
 
+            // Show toast only for other users' replies
+            const isMyReply = user && reply.author.id === user.id;
+            if (!isMyReply) {
                 toast.success(`${reply.author.username} replied to a comment!`, { autoClose: 2000 });
             }
         });
@@ -124,12 +136,22 @@ const Comments: React.FC = () => {
                 return;
             }
 
-            const isMyComment = user && updatedComment.author.id === user.id;
+            setComments((prev) =>
+                prev.map((c) => (c.id === updatedComment.id ? { ...c, ...updatedComment } : c))
+            );
 
+            // Trigger animation
+            setTimeout(() => {
+                const element = document.querySelector(`[data-comment-id="${updatedComment.id}"]`);
+                if (element) {
+                    element.classList.add('comment-item-updated');
+                    setTimeout(() => element.classList.remove('comment-item-updated'), 600);
+                }
+            }, 50);
+
+            // Show toast only for other users' updates
+            const isMyComment = user && updatedComment.author.id === user.id;
             if (!isMyComment) {
-                setComments((prev) =>
-                    prev.map((c) => (c.id === updatedComment.id ? { ...c, ...updatedComment } : c))
-                );
                 toast.info('Comment updated!', { autoClose: 2000 });
             }
         });
@@ -144,11 +166,22 @@ const Comments: React.FC = () => {
                 return;
             }
 
-            const isMyAction = user && deletedBy?.id === user.id;
-
-            // Only remove from UI if someone else deleted it
-            if (!isMyAction) {
+            // Trigger delete animation first
+            const element = document.querySelector(`[data-comment-id="${id}"]`);
+            if (element) {
+                element.classList.add('comment-item-deleting');
+                // Remove from state after animation completes
+                setTimeout(() => {
+                    setComments((prev) => prev.filter((c) => c.id !== id));
+                }, 400);
+            } else {
+                // If element not found, remove immediately
                 setComments((prev) => prev.filter((c) => c.id !== id));
+            }
+
+            // Show toast only for other users' deletions
+            const isMyAction = user && deletedBy?.id === user.id;
+            if (!isMyAction) {
                 toast.info('Comment deleted', { autoClose: 2000 });
             }
         });
@@ -283,7 +316,7 @@ const Comments: React.FC = () => {
 
                     <div className="comments-container">
                         <div className="comments-form-section">
-                            <CommentForm onCommentAdded={loadComments} />
+                            <CommentForm onCommentAdded={() => { }} />
                         </div>
 
                         <div className="comments-controls">
@@ -319,7 +352,7 @@ const Comments: React.FC = () => {
                             </div>
                         </div>
 
-                        <CommentList comments={comments} onUpdate={loadComments} loading={loading} />
+                        <CommentList comments={comments} onUpdate={() => { }} loading={loading} />
 
                         {totalPages > 1 && (
                             <div className="pagination">
