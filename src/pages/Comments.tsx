@@ -11,7 +11,7 @@ import CommentList from '@components/comments/CommentList';
 import './Comments.css';
 
 const Comments: React.FC = () => {
-    const { token } = useAppSelector((state) => state.auth);
+    const { token, user } = useAppSelector((state) => state.auth);
     const [comments, setComments] = useState<Comment[]>([]);
     const [loading, setLoading] = useState(true);
     const [currentPage, setCurrentPage] = useState(1);
@@ -43,115 +43,223 @@ const Comments: React.FC = () => {
 
     // Socket.io real-time updates
     useEffect(() => {
-        if (token) {
-            console.log('🔌 Setting up Socket.io connection...');
+        if (!token) {
+            console.log('⚠️ No token, skipping Socket.io setup');
+            return;
+        }
 
-            // Connect to Socket.io
-            socketService.connect(token);
+        console.log('🔌 Setting up Socket.io connection...', { hasUser: !!user });
 
-            // Wait a bit for connection to establish
-            setTimeout(() => {
-                console.log('Socket connected status:', socketService.isConnected());
-            }, 1000);
+        // Connect to Socket.io
+        socketService.connect(token);
 
-            // Listen for new comments
-            socketService.on('comment:created', (eventData: any) => {
-                console.log('🆕 New comment event received:', eventData);
+        // Wait a bit for connection to establish
+        setTimeout(() => {
+            console.log('Socket connected status:', socketService.isConnected());
+        }, 1000);
 
-                // Extract the actual comment data
-                const newComment = eventData.data || eventData;
+        // Listen for new root comments
+        socketService.on('comment:created', (payload: any) => {
+            console.log('🆕 New comment event received:', payload);
 
-                console.log('Extracted comment:', newComment);
+            const newComment = payload.data;
 
-                // Validate comment has required fields
-                if (!newComment || !newComment.id) {
-                    console.error('Invalid comment data:', newComment);
-                    return;
-                }
+            if (!newComment || !newComment.id) {
+                console.error('Invalid comment data:', newComment);
+                return;
+            }
 
-                // Only add if it's a root comment and we're on the first page with newest sort
-                if (!newComment.parentComment && currentPage === 1 && sortBy === 'newest') {
-                    setComments((prev) => {
-                        // Check if comment already exists
-                        if (prev.some(c => c.id === newComment.id)) {
-                            console.log('Comment already exists, skipping');
-                            return prev;
-                        }
-                        console.log('Adding new comment to list');
-                        return [newComment, ...prev];
-                    });
-                    toast.success('New comment added!', { autoClose: 2000 });
-                } else {
-                    console.log('Comment not added to current view, reloading...');
-                    loadComments();
-                }
-            });
+            const isMyComment = user && newComment.author.id === user.id;
 
-            // Listen for comment updates
-            socketService.on('comment:updated', (eventData: any) => {
-                console.log('✏️ Comment update event received:', eventData);
-                const updatedComment = eventData.data || eventData;
+            // Only add root comments (no parentComment) from other users
+            if (!newComment.parentComment && !isMyComment && currentPage === 1 && sortBy === 'newest') {
+                setComments((prev) => {
+                    if (prev.some(c => c.id === newComment.id)) {
+                        return prev;
+                    }
+                    return [newComment, ...prev];
+                });
+                toast.success(`${newComment.author.username} added a comment!`, { autoClose: 2000 });
+            } else if (!newComment.parentComment && !isMyComment) {
+                loadComments();
+            }
+        });
 
-                if (!updatedComment || !updatedComment.id) {
-                    console.error('Invalid updated comment data:', updatedComment);
-                    return;
-                }
+        // Listen for replies
+        socketService.on('comment:reply_created', (payload: any) => {
+            console.log('💬 Reply created event received:', payload);
 
+            const { reply, parentId } = payload.data;
+
+            if (!parentId) {
+                console.error('Invalid reply data:', payload);
+                return;
+            }
+
+            const isMyReply = user && reply.author.id === user.id;
+
+            console.log('📝 Reply added to parent:', parentId, 'isMyReply:', isMyReply);
+
+            // Update the parent comment's replyCount (for everyone)
+            if (!isMyReply) {
+                setComments((prev) =>
+                    prev.map((c) =>
+                        c.id === parentId
+                            ? { ...c, replyCount: (c.replyCount || 0) + 1 }
+                            : c
+                    )
+                );
+
+                toast.success(`${reply.author.username} replied to a comment!`, { autoClose: 2000 });
+            }
+        });
+
+        // Listen for comment updates
+        socketService.on('comment:updated', (payload: any) => {
+            console.log('✏️ Comment update event received:', payload);
+            const updatedComment = payload.data;
+
+            if (!updatedComment || !updatedComment.id) {
+                console.error('Invalid updated comment data:', updatedComment);
+                return;
+            }
+
+            const isMyComment = user && updatedComment.author.id === user.id;
+
+            if (!isMyComment) {
                 setComments((prev) =>
                     prev.map((c) => (c.id === updatedComment.id ? { ...c, ...updatedComment } : c))
                 );
                 toast.info('Comment updated!', { autoClose: 2000 });
-            });
+            }
+        });
 
-            // Listen for comment deletions
-            socketService.on('comment:deleted', (eventData: any) => {
-                console.log('🗑️ Comment delete event received:', eventData);
-                const commentId = eventData.data?.id || eventData.commentId || eventData.id;
+        // Listen for comment deletions
+        socketService.on('comment:deleted', (payload: any) => {
+            console.log('🗑️ Comment delete event received:', payload);
+            const { id, deletedBy } = payload.data;
 
-                if (!commentId) {
-                    console.error('Invalid delete event data:', eventData);
-                    return;
-                }
+            if (!id) {
+                console.error('Invalid delete event data:', payload);
+                return;
+            }
 
-                setComments((prev) => prev.filter((c) => c.id !== commentId));
+            const isMyAction = user && deletedBy?.id === user.id;
+
+            // Only remove from UI if someone else deleted it
+            if (!isMyAction) {
+                setComments((prev) => prev.filter((c) => c.id !== id));
                 toast.info('Comment deleted', { autoClose: 2000 });
+            }
+        });
+
+        // Listen for like updates - OPTIMIZED with actionBy
+        socketService.on('comment:like_updated', (payload: any) => {
+            console.log('👍 Like update event received:', payload);
+            const likeData = payload.data;
+
+            const commentId = likeData.commentId;
+            const likeCount = likeData.likeCount;
+            const dislikeCount = likeData.dislikeCount;
+            const action = likeData.action;
+            const actionBy = likeData.actionBy;
+
+            if (!commentId) {
+                console.error('Invalid like event data:', payload);
+                return;
+            }
+
+            // Get current user from localStorage to ensure we have it
+            const userStr = localStorage.getItem('user');
+            const currentUser = userStr ? JSON.parse(userStr) : null;
+            const isMyAction = currentUser && actionBy && actionBy.id === currentUser.id;
+
+            console.log('� Like update:', {
+                commentId,
+                likeCount,
+                dislikeCount,
+                action,
+                isMyAction,
+                currentUserId: currentUser?.id,
+                actionById: actionBy?.id
             });
 
-            // Listen for like/dislike updates
-            socketService.on('comment:liked', (eventData: any) => {
-                console.log('👍 Like update event received:', eventData);
-                const likeData = eventData.data || eventData;
+            setComments((prev) =>
+                prev.map((c) => {
+                    if (c.id === commentId) {
+                        return {
+                            ...c,
+                            likeCount: likeCount ?? c.likeCount,
+                            dislikeCount: dislikeCount ?? c.dislikeCount,
+                            // Update hasLiked/hasDisliked only for current user
+                            hasLiked: isMyAction ? (action === 'liked') : c.hasLiked,
+                            hasDisliked: isMyAction ? false : c.hasDisliked,
+                        };
+                    }
+                    return c;
+                })
+            );
+        });
 
-                if (!likeData || !likeData.commentId) {
-                    console.error('Invalid like event data:', eventData);
-                    return;
-                }
+        // Listen for dislike updates - OPTIMIZED with actionBy
+        socketService.on('comment:dislike_updated', (payload: any) => {
+            console.log('👎 Dislike update event received:', payload);
+            const dislikeData = payload.data;
 
-                setComments((prev) =>
-                    prev.map((c) =>
-                        c.id === likeData.commentId
-                            ? {
-                                ...c,
-                                likeCount: likeData.likeCount ?? c.likeCount,
-                                dislikeCount: likeData.dislikeCount ?? c.dislikeCount,
-                                hasLiked: likeData.hasLiked ?? c.hasLiked,
-                                hasDisliked: likeData.hasDisliked ?? c.hasDisliked,
-                            }
-                            : c
-                    )
-                );
+            const commentId = dislikeData.commentId;
+            const likeCount = dislikeData.likeCount;
+            const dislikeCount = dislikeData.dislikeCount;
+            const action = dislikeData.action;
+            const actionBy = dislikeData.actionBy;
+
+            if (!commentId) {
+                console.error('Invalid dislike event data:', payload);
+                return;
+            }
+
+            // Get current user from localStorage to ensure we have it
+            const userStr = localStorage.getItem('user');
+            const currentUser = userStr ? JSON.parse(userStr) : null;
+            const isMyAction = currentUser && actionBy && actionBy.id === currentUser.id;
+
+            console.log('👎 Dislike update:', {
+                commentId,
+                likeCount,
+                dislikeCount,
+                action,
+                isMyAction,
+                currentUserId: currentUser?.id,
+                actionById: actionBy?.id
             });
 
-            return () => {
-                console.log('🔌 Cleaning up Socket.io listeners...');
-                socketService.off('comment:created');
-                socketService.off('comment:updated');
-                socketService.off('comment:deleted');
-                socketService.off('comment:liked');
-                socketService.disconnect();
-            };
-        }
-    }, [token, currentPage, sortBy, loadComments]);
+            setComments((prev) =>
+                prev.map((c) => {
+                    if (c.id === commentId) {
+                        return {
+                            ...c,
+                            likeCount: likeCount ?? c.likeCount,
+                            dislikeCount: dislikeCount ?? c.dislikeCount,
+                            // Update hasLiked/hasDisliked only for current user
+                            hasLiked: isMyAction ? false : c.hasLiked,
+                            hasDisliked: isMyAction ? (action === 'disliked') : c.hasDisliked,
+                        };
+                    }
+                    return c;
+                })
+            );
+        });
+
+        return () => {
+            console.log('🔌 Cleaning up Socket.io listeners...');
+            socketService.off('comment:created');
+            socketService.off('comment:reply_created');
+            socketService.off('comment:updated');
+            socketService.off('comment:deleted');
+            socketService.off('comment:like_updated');
+            socketService.off('comment:dislike_updated');
+            socketService.disconnect();
+        };
+    }, [token, user, currentPage, sortBy, loadComments]);
 
     const handleSortChange = (newSort: 'newest' | 'oldest' | 'most_liked') => {
         setSortBy(newSort);
