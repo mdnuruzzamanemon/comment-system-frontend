@@ -277,7 +277,6 @@ const Comments: React.FC = () => {
                             ...c,
                             likeCount: likeCount ?? c.likeCount,
                             dislikeCount: dislikeCount ?? c.dislikeCount,
-                            // Update hasLiked/hasDisliked only for current user
                             hasLiked: isMyAction ? (action === 'liked') : c.hasLiked,
                             hasDisliked: isMyAction ? false : c.hasDisliked,
                         };
@@ -325,7 +324,6 @@ const Comments: React.FC = () => {
                             ...c,
                             likeCount: likeCount ?? c.likeCount,
                             dislikeCount: dislikeCount ?? c.dislikeCount,
-                            // Update hasLiked/hasDisliked only for current user
                             hasLiked: isMyAction ? false : c.hasLiked,
                             hasDisliked: isMyAction ? (action === 'disliked') : c.hasDisliked,
                         };
@@ -345,7 +343,7 @@ const Comments: React.FC = () => {
             socketService.off('comment:dislike_updated');
             socketService.disconnect();
         };
-    }, [token, user, currentPage, sortBy, loadComments]);
+    }, [token, currentPage, sortBy]);
 
     const handleSortChange = (newSort: 'newest' | 'oldest' | 'most_liked' | 'most_disliked') => {
         setSortBy(newSort);

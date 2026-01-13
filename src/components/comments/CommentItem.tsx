@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ThumbsUp, ThumbsDown, MessageCircle, Edit2, Trash2, MoreVertical } from 'lucide-react';
 import { toast } from 'react-toastify';
 import type { Comment } from '../../types';
@@ -32,6 +32,20 @@ const CommentItem: React.FC<CommentItemProps> = ({
     const [localDislikeCount, setLocalDislikeCount] = useState(comment.dislikeCount);
     const [localHasLiked, setLocalHasLiked] = useState(comment.hasLiked);
     const [localHasDisliked, setLocalHasDisliked] = useState(comment.hasDisliked);
+
+    // Sync props to local state when comment updates
+    useEffect(() => {
+        // Only update if values actually changed to prevent unnecessary re-renders
+        if (comment.likeCount !== localLikeCount ||
+            comment.dislikeCount !== localDislikeCount ||
+            comment.hasLiked !== localHasLiked ||
+            comment.hasDisliked !== localHasDisliked) {
+            setLocalLikeCount(comment.likeCount);
+            setLocalDislikeCount(comment.dislikeCount);
+            setLocalHasLiked(comment.hasLiked);
+            setLocalHasDisliked(comment.hasDisliked);
+        }
+    }, [comment.likeCount, comment.dislikeCount, comment.hasLiked, comment.hasDisliked, localLikeCount, localDislikeCount, localHasLiked, localHasDisliked]);
 
     // Get current user from localStorage to ensure we have it
     const getCurrentUser = () => {
