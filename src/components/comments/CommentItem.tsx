@@ -32,6 +32,7 @@ const CommentItem: React.FC<CommentItemProps> = ({
     const [localDislikeCount, setLocalDislikeCount] = useState(comment.dislikeCount);
     const [localHasLiked, setLocalHasLiked] = useState(comment.hasLiked);
     const [localHasDisliked, setLocalHasDisliked] = useState(comment.hasDisliked);
+    const [isOptimisticUpdate, setIsOptimisticUpdate] = useState(false);
 
 
 
@@ -49,29 +50,34 @@ const CommentItem: React.FC<CommentItemProps> = ({
         const wasLiked = localHasLiked;
         const wasDisliked = localHasDisliked;
 
+        // Lock optimistic update
+        setIsOptimisticUpdate(true);
+
         if (wasLiked) {
             // Unlike
             setLocalHasLiked(false);
-            setLocalLikeCount(localLikeCount - 1);
+            setLocalLikeCount(prev => prev - 1);
         } else {
             // Like
             setLocalHasLiked(true);
-            setLocalLikeCount(localLikeCount + 1);
+            setLocalLikeCount(prev => prev + 1);
             if (wasDisliked) {
                 setLocalHasDisliked(false);
-                setLocalDislikeCount(localDislikeCount - 1);
+                setLocalDislikeCount(prev => prev - 1);
             }
         }
 
         try {
             await commentService.likeComment(comment.id);
-            // Server will broadcast the update via Socket.io
+            // Unlock after server confirms
+            setIsOptimisticUpdate(false);
         } catch (error: any) {
             // Revert on error
             setLocalHasLiked(wasLiked);
             setLocalHasDisliked(wasDisliked);
             setLocalLikeCount(comment.likeCount);
             setLocalDislikeCount(comment.dislikeCount);
+            setIsOptimisticUpdate(false);
             toast.error(error.response?.data?.message || 'Failed to like comment');
         }
     };
@@ -81,29 +87,34 @@ const CommentItem: React.FC<CommentItemProps> = ({
         const wasLiked = localHasLiked;
         const wasDisliked = localHasDisliked;
 
+        // Lock optimistic update
+        setIsOptimisticUpdate(true);
+
         if (wasDisliked) {
             // Undislike
             setLocalHasDisliked(false);
-            setLocalDislikeCount(localDislikeCount - 1);
+            setLocalDislikeCount(prev => prev - 1);
         } else {
             // Dislike
             setLocalHasDisliked(true);
-            setLocalDislikeCount(localDislikeCount + 1);
+            setLocalDislikeCount(prev => prev + 1);
             if (wasLiked) {
                 setLocalHasLiked(false);
-                setLocalLikeCount(localLikeCount - 1);
+                setLocalLikeCount(prev => prev - 1);
             }
         }
 
         try {
             await commentService.dislikeComment(comment.id);
-            // Server will broadcast the update via Socket.io
+            // Unlock after server confirms
+            setIsOptimisticUpdate(false);
         } catch (error: any) {
             // Revert on error
             setLocalHasLiked(wasLiked);
             setLocalHasDisliked(wasDisliked);
             setLocalLikeCount(comment.likeCount);
             setLocalDislikeCount(comment.dislikeCount);
+            setIsOptimisticUpdate(false);
             toast.error(error.response?.data?.message || 'Failed to dislike comment');
         }
     };
@@ -151,6 +162,11 @@ const CommentItem: React.FC<CommentItemProps> = ({
 
     // Sync from Socket.io updates (only for other users' actions)
     React.useEffect(() => {
+        // Don't sync if we have an optimistic update in progress
+        if (isOptimisticUpdate) {
+            return;
+        }
+
         const likeChanged = localLikeCount !== comment.likeCount;
         const dislikeChanged = localDislikeCount !== comment.dislikeCount;
 
@@ -172,7 +188,7 @@ const CommentItem: React.FC<CommentItemProps> = ({
                 setTimeout(() => dislikeButton.classList.remove('comment-action-updated'), 300);
             }
         }
-    }, [comment.likeCount, comment.dislikeCount]);
+    }, [comment.likeCount, comment.dislikeCount, isOptimisticUpdate]);
 
     return (
         <div className="comment-item" data-comment-id={comment.id}>
