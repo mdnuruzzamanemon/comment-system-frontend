@@ -1,11 +1,15 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { MessageSquare, Users, Zap, Shield, TrendingUp, Heart } from 'lucide-react';
+import Navbar from '@components/common/Navbar';
 import './Landing.css';
 
 const Landing: React.FC = () => {
     return (
         <div className="landing-page">
+            {/* Navbar */}
+            <Navbar />
+
             {/* Hero Section */}
             <section className="hero-section">
                 <div className="container">
