@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { ChevronDown, ChevronUp, Loader } from 'lucide-react';
 import { Comment } from '@types/index';
 import { commentService } from '@services/commentService';
+import socketService from '@services/socket';
 import { toast } from 'react-toastify';
 import CommentItem from './CommentItem';
 import './CommentList.css';
@@ -62,6 +63,162 @@ const CommentList: React.FC<CommentListProps> = ({ comments, onUpdate, loading }
             console.error('Failed to reload replies');
         }
     };
+
+    // Socket.io real-time updates for replies
+    useEffect(() => {
+        // Get current user from localStorage
+        const userStr = localStorage.getItem('user');
+        const currentUser = userStr ? JSON.parse(userStr) : null;
+
+        // Listen for new replies
+        const handleReplyCreated = (payload: any) => {
+            const { reply, parentId } = payload.data;
+            const isMyReply = currentUser && reply.author.id === currentUser.id;
+
+            console.log('💬 Reply created in CommentList:', { reply, parentId, isMyReply });
+
+            // If the parent comment's replies are expanded, add the new reply
+            if (expandedReplies.has(parentId)) {
+                setReplies((prevReplies) => {
+                    const parentReplies = prevReplies[parentId] || [];
+
+                    // Check if reply already exists
+                    if (parentReplies.some(r => r.id === reply.id)) {
+                        return prevReplies;
+                    }
+
+                    // Add new reply to the end (oldest first)
+                    return {
+                        ...prevReplies,
+                        [parentId]: [...parentReplies, reply],
+                    };
+                });
+            }
+
+            // Update parent comment to refresh reply count
+            onUpdate();
+        };
+
+        // Listen for like updates on replies
+        const handleLikeUpdate = (payload: any) => {
+            const { commentId, likeCount, dislikeCount, action, actionBy } = payload.data;
+            const isMyAction = currentUser && actionBy && actionBy.id === currentUser.id;
+
+            // Update reply if it exists in any of the loaded replies
+            setReplies((prevReplies) => {
+                const newReplies = { ...prevReplies };
+                let updated = false;
+
+                Object.keys(newReplies).forEach((parentId) => {
+                    newReplies[parentId] = newReplies[parentId].map((reply) => {
+                        if (reply.id === commentId) {
+                            updated = true;
+                            return {
+                                ...reply,
+                                likeCount: likeCount ?? reply.likeCount,
+                                dislikeCount: dislikeCount ?? reply.dislikeCount,
+                                hasLiked: isMyAction ? (action === 'liked') : reply.hasLiked,
+                                hasDisliked: isMyAction ? false : reply.hasDisliked,
+                            };
+                        }
+                        return reply;
+                    });
+                });
+
+                return updated ? newReplies : prevReplies;
+            });
+        };
+
+        // Listen for dislike updates on replies
+        const handleDislikeUpdate = (payload: any) => {
+            const { commentId, likeCount, dislikeCount, action, actionBy } = payload.data;
+            const isMyAction = currentUser && actionBy && actionBy.id === currentUser.id;
+
+            setReplies((prevReplies) => {
+                const newReplies = { ...prevReplies };
+                let updated = false;
+
+                Object.keys(newReplies).forEach((parentId) => {
+                    newReplies[parentId] = newReplies[parentId].map((reply) => {
+                        if (reply.id === commentId) {
+                            updated = true;
+                            return {
+                                ...reply,
+                                likeCount: likeCount ?? reply.likeCount,
+                                dislikeCount: dislikeCount ?? reply.dislikeCount,
+                                hasLiked: isMyAction ? false : reply.hasLiked,
+                                hasDisliked: isMyAction ? (action === 'disliked') : reply.hasDisliked,
+                            };
+                        }
+                        return reply;
+                    });
+                });
+
+                return updated ? newReplies : prevReplies;
+            });
+        };
+
+        // Listen for reply updates (edit)
+        const handleReplyUpdated = (payload: any) => {
+            const updatedReply = payload.data;
+
+            setReplies((prevReplies) => {
+                const newReplies = { ...prevReplies };
+                let updated = false;
+
+                Object.keys(newReplies).forEach((parentId) => {
+                    newReplies[parentId] = newReplies[parentId].map((reply) => {
+                        if (reply.id === updatedReply.id) {
+                            updated = true;
+                            return { ...reply, ...updatedReply };
+                        }
+                        return reply;
+                    });
+                });
+
+                return updated ? newReplies : prevReplies;
+            });
+        };
+
+        // Listen for reply deletions
+        const handleReplyDeleted = (payload: any) => {
+            const { id } = payload.data;
+
+            setReplies((prevReplies) => {
+                const newReplies = { ...prevReplies };
+                let updated = false;
+
+                Object.keys(newReplies).forEach((parentId) => {
+                    const filteredReplies = newReplies[parentId].filter((reply) => reply.id !== id);
+                    if (filteredReplies.length !== newReplies[parentId].length) {
+                        updated = true;
+                        newReplies[parentId] = filteredReplies;
+                    }
+                });
+
+                return updated ? newReplies : prevReplies;
+            });
+
+            // Also update parent comment to refresh reply count
+            onUpdate();
+        };
+
+        // Register Socket.io listeners
+        socketService.on('comment:reply_created', handleReplyCreated);
+        socketService.on('comment:like_updated', handleLikeUpdate);
+        socketService.on('comment:dislike_updated', handleDislikeUpdate);
+        socketService.on('comment:updated', handleReplyUpdated);
+        socketService.on('comment:deleted', handleReplyDeleted);
+
+        // Cleanup
+        return () => {
+            socketService.off('comment:reply_created', handleReplyCreated);
+            socketService.off('comment:like_updated', handleLikeUpdate);
+            socketService.off('comment:dislike_updated', handleDislikeUpdate);
+            socketService.off('comment:updated', handleReplyUpdated);
+            socketService.off('comment:deleted', handleReplyDeleted);
+        };
+    }, [onUpdate, expandedReplies]);
 
     if (loading) {
         return (
