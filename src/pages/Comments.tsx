@@ -234,8 +234,8 @@ const Comments: React.FC = () => {
 
             // Show toast only for other users' deletions
             const isMyAction = user && deletedBy?.id === user.id;
-            if (!isMyAction) {
-                toast.info('Comment deleted', { autoClose: 2000 });
+            if (!isMyAction && deletedBy?.username) {
+                toast.info(`${deletedBy.username} deleted a comment`, { autoClose: 2000 });
             }
         });
 
@@ -317,6 +317,13 @@ const Comments: React.FC = () => {
                 actionById: actionBy?.id
             });
 
+            // Skip updating state for current user's own actions (optimistic update already applied)
+            if (isMyAction) {
+                console.log('👎 Skipping dislike update for own action (optimistic update active)');
+                return;
+            }
+
+            // Only update for other users' actions
             setComments((prev) =>
                 prev.map((c) => {
                     if (c.id === commentId) {
@@ -324,8 +331,8 @@ const Comments: React.FC = () => {
                             ...c,
                             likeCount: likeCount ?? c.likeCount,
                             dislikeCount: dislikeCount ?? c.dislikeCount,
-                            hasLiked: isMyAction ? false : c.hasLiked,
-                            hasDisliked: isMyAction ? (action === 'disliked') : c.hasDisliked,
+                            hasLiked: c.hasLiked,
+                            hasDisliked: c.hasDisliked,
                         };
                     }
                     return c;

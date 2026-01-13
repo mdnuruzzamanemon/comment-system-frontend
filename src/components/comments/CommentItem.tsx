@@ -33,19 +33,7 @@ const CommentItem: React.FC<CommentItemProps> = ({
     const [localHasLiked, setLocalHasLiked] = useState(comment.hasLiked);
     const [localHasDisliked, setLocalHasDisliked] = useState(comment.hasDisliked);
 
-    // Sync props to local state when comment updates
-    useEffect(() => {
-        // Only update if values actually changed to prevent unnecessary re-renders
-        if (comment.likeCount !== localLikeCount ||
-            comment.dislikeCount !== localDislikeCount ||
-            comment.hasLiked !== localHasLiked ||
-            comment.hasDisliked !== localHasDisliked) {
-            setLocalLikeCount(comment.likeCount);
-            setLocalDislikeCount(comment.dislikeCount);
-            setLocalHasLiked(comment.hasLiked);
-            setLocalHasDisliked(comment.hasDisliked);
-        }
-    }, [comment.likeCount, comment.dislikeCount, comment.hasLiked, comment.hasDisliked, localLikeCount, localDislikeCount, localHasLiked, localHasDisliked]);
+
 
     // Get current user from localStorage to ensure we have it
     const getCurrentUser = () => {
@@ -161,18 +149,17 @@ const CommentItem: React.FC<CommentItemProps> = ({
         return date.toLocaleDateString();
     };
 
-    // Update local state when props change (from Socket.io)
+    // Sync from Socket.io updates (only for other users' actions)
     React.useEffect(() => {
         const likeChanged = localLikeCount !== comment.likeCount;
         const dislikeChanged = localDislikeCount !== comment.dislikeCount;
 
-        setLocalLikeCount(comment.likeCount);
-        setLocalDislikeCount(comment.dislikeCount);
-        setLocalHasLiked(comment.hasLiked);
-        setLocalHasDisliked(comment.hasDisliked);
-
-        // Trigger animation if counts changed
+        // Only sync if the comment prop changed (from Socket.io updates)
         if (likeChanged || dislikeChanged) {
+            setLocalLikeCount(comment.likeCount);
+            setLocalDislikeCount(comment.dislikeCount);
+            
+            // Trigger animation for real-time updates from other users
             const likeButton = document.querySelector(`[data-comment-id="${comment.id}"] .comment-action:first-of-type`);
             const dislikeButton = document.querySelector(`[data-comment-id="${comment.id}"] .comment-action:nth-of-type(2)`);
 
@@ -185,7 +172,7 @@ const CommentItem: React.FC<CommentItemProps> = ({
                 setTimeout(() => dislikeButton.classList.remove('comment-action-updated'), 300);
             }
         }
-    }, [comment.likeCount, comment.dislikeCount, comment.hasLiked, comment.hasDisliked, localLikeCount, localDislikeCount]);
+    }, [comment.likeCount, comment.dislikeCount]);
 
     return (
         <div className="comment-item" data-comment-id={comment.id}>
